@@ -324,7 +324,6 @@ class ComponentInteraction(
 
         return None
 
-    @deprecation.deprecated("2.0.0.dev110", "fetch_message")
     async def fetch_parent_message(self) -> messages.Message:
         """Fetch the message which this interaction was triggered on.
 
@@ -362,7 +361,6 @@ class ComponentInteraction(
         )
         return await self.fetch_message(self.message.id)
 
-    @deprecation.deprecated("2.0.0.dev110", "message")
     def get_parent_message(self) -> typing.Optional[messages.PartialMessage]:
         """Get the message which this interaction was triggered on from the cache.
 
