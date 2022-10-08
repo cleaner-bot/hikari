@@ -53,11 +53,16 @@ if typing.TYPE_CHECKING:
     from hikari.interactions import base_interactions
     from hikari.interactions import command_interactions
     from hikari.interactions import component_interactions
+    from hikari.interactions import modal_interactions
 
     _InteractionT_co = typing.TypeVar("_InteractionT_co", bound=base_interactions.PartialInteraction, covariant=True)
     _MessageResponseBuilderT = typing.Union[
         special_endpoints.InteractionDeferredBuilder,
         special_endpoints.InteractionMessageBuilder,
+    ]
+    _ModalResponseBuilderT = typing.Union[
+        _MessageResponseBuilderT,
+        special_endpoints.InteractionModalBuilder,
     ]
 
 _LOGGER: typing.Final[logging.Logger] = logging.getLogger("hikari.rest_bot")
@@ -600,7 +605,7 @@ class RESTBot(traits.RESTBotAware, interaction_server_.InteractionServer):
     def get_listener(
         self, interaction_type: typing.Type[command_interactions.CommandInteraction], /
     ) -> typing.Optional[
-        interaction_server_.ListenerT[command_interactions.CommandInteraction, _MessageResponseBuilderT]
+        interaction_server_.ListenerT[command_interactions.CommandInteraction, _ModalResponseBuilderT]
     ]:
         ...
 
@@ -608,7 +613,7 @@ class RESTBot(traits.RESTBotAware, interaction_server_.InteractionServer):
     def get_listener(
         self, interaction_type: typing.Type[component_interactions.ComponentInteraction], /
     ) -> typing.Optional[
-        interaction_server_.ListenerT[component_interactions.ComponentInteraction, _MessageResponseBuilderT]
+        interaction_server_.ListenerT[component_interactions.ComponentInteraction, _ModalResponseBuilderT]
     ]:
         ...
 
@@ -620,6 +625,12 @@ class RESTBot(traits.RESTBotAware, interaction_server_.InteractionServer):
             command_interactions.AutocompleteInteraction, special_endpoints.InteractionAutocompleteBuilder
         ]
     ]:
+        ...
+
+    @typing.overload
+    def get_listener(
+        self, interaction_type: typing.Type[modal_interactions.ModalInteraction], /
+    ) -> typing.Optional[interaction_server_.ListenerT[modal_interactions.ModalInteraction, _MessageResponseBuilderT]]:
         ...
 
     @typing.overload
@@ -638,7 +649,7 @@ class RESTBot(traits.RESTBotAware, interaction_server_.InteractionServer):
         self,
         interaction_type: typing.Type[command_interactions.CommandInteraction],
         listener: typing.Optional[
-            interaction_server_.ListenerT[command_interactions.CommandInteraction, _MessageResponseBuilderT]
+            interaction_server_.ListenerT[command_interactions.CommandInteraction, _ModalResponseBuilderT]
         ],
         /,
         *,
@@ -651,7 +662,7 @@ class RESTBot(traits.RESTBotAware, interaction_server_.InteractionServer):
         self,
         interaction_type: typing.Type[component_interactions.ComponentInteraction],
         listener: typing.Optional[
-            interaction_server_.ListenerT[component_interactions.ComponentInteraction, _MessageResponseBuilderT]
+            interaction_server_.ListenerT[component_interactions.ComponentInteraction, _ModalResponseBuilderT]
         ],
         /,
         *,
@@ -667,6 +678,19 @@ class RESTBot(traits.RESTBotAware, interaction_server_.InteractionServer):
             interaction_server_.ListenerT[
                 command_interactions.AutocompleteInteraction, special_endpoints.InteractionAutocompleteBuilder
             ]
+        ],
+        /,
+        *,
+        replace: bool = False,
+    ) -> None:
+        ...
+
+    @typing.overload
+    def set_listener(
+        self,
+        interaction_type: typing.Type[modal_interactions.ModalInteraction],
+        listener: typing.Optional[
+            interaction_server_.ListenerT[modal_interactions.ModalInteraction, _MessageResponseBuilderT]
         ],
         /,
         *,

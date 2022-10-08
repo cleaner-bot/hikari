@@ -61,6 +61,7 @@ from hikari.api import entity_factory
 from hikari.interactions import base_interactions
 from hikari.interactions import command_interactions
 from hikari.interactions import component_interactions
+from hikari.interactions import modal_interactions
 from hikari.internal import attr_extensions
 from hikari.internal import data_binding
 from hikari.internal import time
@@ -408,6 +409,7 @@ class EntityFactoryImpl(entity_factory.EntityFactory):
         "_audit_log_entry_converters",
         "_audit_log_event_mapping",
         "_command_mapping",
+        "_modal_component_type_mapping",
         "_component_type_mapping",
         "_dm_channel_type_mapping",
         "_guild_channel_type_mapping",
@@ -482,6 +484,10 @@ class EntityFactoryImpl(entity_factory.EntityFactory):
             message_models.ComponentType.BUTTON: self._deserialize_button,
             message_models.ComponentType.SELECT_MENU: self._deserialize_select_menu,
         }
+        self._modal_component_type_mapping = {
+            modal_interactions.ModalComponentType.ACTION_ROW: self._deserialize_modal_action_row,
+            modal_interactions.ModalComponentType.TEXT_INPUT: self._deserialize_text_input,
+        }
         self._dm_channel_type_mapping = {
             channel_models.ChannelType.DM: self.deserialize_dm,
             channel_models.ChannelType.GROUP_DM: self.deserialize_group_dm,
@@ -499,6 +505,7 @@ class EntityFactoryImpl(entity_factory.EntityFactory):
             base_interactions.InteractionType.APPLICATION_COMMAND: self.deserialize_command_interaction,
             base_interactions.InteractionType.MESSAGE_COMPONENT: self.deserialize_component_interaction,
             base_interactions.InteractionType.AUTOCOMPLETE: self.deserialize_autocomplete_interaction,
+            base_interactions.InteractionType.MODAL_SUBMIT: self.deserialize_modal_interaction,
         }
         self._scheduled_event_type_mapping = {
             scheduled_events_models.ScheduledEventType.STAGE_INSTANCE: self.deserialize_scheduled_stage_event,
@@ -2177,6 +2184,56 @@ class EntityFactoryImpl(entity_factory.EntityFactory):
             guild_locale=locales.Locale(payload["guild_locale"]) if "guild_locale" in payload else None,
         )
 
+    def deserialize_modal_interaction(self, payload: data_binding.JSONObject) -> modal_interactions.ModalInteraction:
+        data_payload = payload["data"]
+
+        guild_id: typing.Optional[snowflakes.Snowflake] = None
+        if raw_guild_id := payload.get("guild_id"):
+            guild_id = snowflakes.Snowflake(raw_guild_id)
+
+        member: typing.Optional[base_interactions.InteractionMember]
+        if member_payload := payload.get("member"):
+            assert guild_id is not None
+            member = self._deserialize_interaction_member(member_payload, guild_id=guild_id)
+            # See https://github.com/discord/discord-api-docs/pull/2568
+            user = member.user
+
+        else:
+            member = None
+            user = self.deserialize_user(payload["user"])
+
+        app_perms = payload.get("app_permissions")
+
+        components: typing.List[modal_interactions.PartialModalComponent] = []
+        for component_payload in data_payload["components"]:
+            try:
+                components.append(self._deserialize_modal_component(component_payload))
+            except errors.UnrecognisedEntityError:
+                pass
+
+        message: typing.Optional[message_models.Message] = None
+        if message_payload := payload.get("message"):
+            message = self.deserialize_message(message_payload)
+
+        return modal_interactions.ModalInteraction(
+            app=self._app,
+            application_id=snowflakes.Snowflake(payload["application_id"]),
+            id=snowflakes.Snowflake(payload["id"]),
+            type=base_interactions.InteractionType(payload["type"]),
+            guild_id=guild_id,
+            app_permissions=permission_models.Permissions(app_perms) if app_perms is not None else None,
+            guild_locale=locales.Locale(payload["guild_locale"]) if "guild_locale" in payload else None,
+            locale=locales.Locale(payload["locale"]),
+            channel_id=snowflakes.Snowflake(payload["channel_id"]),
+            member=member,
+            user=user,
+            token=payload["token"],
+            version=payload["version"],
+            custom_id=data_payload["custom_id"],
+            components=components,
+            message=message,
+        )
+
     def deserialize_interaction(self, payload: data_binding.JSONObject) -> base_interactions.PartialInteraction:
         interaction_type = base_interactions.InteractionType(payload["type"])
 
@@ -2371,6 +2428,40 @@ class EntityFactoryImpl(entity_factory.EntityFactory):
         component_type = message_models.ComponentType(payload["type"])
 
         if deserialize := self._component_type_mapping.get(component_type):
+            return deserialize(payload)
+
+        _LOGGER.debug("Unknown component type %s", component_type)
+        raise errors.UnrecognisedEntityError(f"Unrecognised component type {component_type}")
+
+    def _deserialize_modal_action_row(
+        self, payload: data_binding.JSONObject
+    ) -> modal_interactions.ModalActionRowComponent:
+        components: typing.List[modal_interactions.PartialModalComponent] = []
+
+        for component_payload in payload["components"]:
+            try:
+                components.append(self._deserialize_modal_component(component_payload))
+
+            except errors.UnrecognisedEntityError:
+                pass
+
+        return modal_interactions.ModalActionRowComponent(
+            type=message_models.ComponentType(payload["type"]), components=components
+        )
+
+    def _deserialize_text_input(self, payload: data_binding.JSONObject) -> modal_interactions.InteractionTextInput:
+        return modal_interactions.InteractionTextInput(
+            type=message_models.ComponentType(payload["type"]),
+            custom_id=payload["custom_id"],
+            value=payload["value"],
+        )
+
+    def _deserialize_modal_component(
+        self, payload: data_binding.JSONObject
+    ) -> modal_interactions.PartialModalComponent:
+        component_type = modal_interactions.ModalComponentType(payload["type"])
+
+        if deserialize := self._modal_component_type_mapping.get(component_type):
             return deserialize(payload)
 
         _LOGGER.debug("Unknown component type %s", component_type)

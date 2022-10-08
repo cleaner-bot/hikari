@@ -7270,6 +7270,31 @@ class RESTClient(traits.NetworkSettingsAware, abc.ABC):
         """
 
     @abc.abstractmethod
+    def interaction_modal_builder(
+        self,
+        title: str,
+        custom_id: str,
+        *,
+        components: undefined.UndefinedOr[typing.Sequence[special_endpoints.ComponentBuilder]] = undefined.UNDEFINED,
+    ) -> special_endpoints.InteractionModalBuilder:
+        """Create a builder for a modal interaction response.
+
+        Parameters
+        ----------
+        title : builtins.str
+            The title that will show up in the modal.
+        custom_id : builtins.str
+            Developer set custom ID used for identifying interactions with this modal.
+        components : hikari.undefined.UndefinedOr[typing.Sequence[special_endpoints.ComponentBuilder]]
+            Sequence of component builders to send in this modal.
+
+        Returns
+        -------
+        hikari.api.special_endpoints.InteractionModalBuilder
+            The interaction modal response builder object.
+        """
+
+    @abc.abstractmethod
     async def fetch_interaction_response(
         self, application: snowflakes.SnowflakeishOr[guilds.PartialApplication], token: str
     ) -> messages_.Message:
@@ -7676,6 +7701,34 @@ class RESTClient(traits.NetworkSettingsAware, abc.ABC):
             If an internal error occurs on Discord while handling the request.
         """  # noqa: E501 - Line too long
 
+    async def create_modal_response(
+        self,
+        interaction: snowflakes.SnowflakeishOr[base_interactions.PartialInteraction],
+        token: str,
+        *,
+        title: str,
+        custom_id: str,
+        components: typing.Sequence[special_endpoints.ComponentBuilder],
+    ) -> None:
+        """Create a response by sending a modal.
+
+        Parameters
+        ----------
+        interaction : hikari.snowflakes.SnowflakeishOr[hikari.interactions.base_interactions.PartialInteraction]
+            Object or ID of the interaction this response is for.
+        token : builtins.str
+            The command interaction's token.
+
+        Other Parameters
+        ----------------
+        title : str
+            The title that will show up in the modal.
+        custom_id : str
+            Developer set custom ID used for identifying interactions with this modal.
+        components : typing.Sequence[special_endpoints.ComponentBuilder]
+            A sequence of component builders to send in this modal.
+        """
+
     @abc.abstractmethod
     def build_action_row(self) -> special_endpoints.ActionRowBuilder:
         """Build an action row message component for use in message create and REST calls.
@@ -7683,6 +7736,16 @@ class RESTClient(traits.NetworkSettingsAware, abc.ABC):
         Returns
         -------
         hikari.api.special_endpoints.ActionRowBuilder
+            The initialised action row builder.
+        """
+
+    @abc.abstractmethod
+    def build_modal_action_row(self) -> special_endpoints.ModalActionRowBuilder:
+        """Build an action row modal component for use in interactions and REST calls.
+
+        Returns
+        -------
+        hikari.api.special_endpoints.ModalActionRowBuilder
             The initialised action row builder.
         """
 

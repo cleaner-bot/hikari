@@ -33,6 +33,7 @@ from hikari import snowflakes
 from hikari import undefined
 from hikari.impl import special_endpoints
 from hikari.interactions import base_interactions
+from hikari.interactions import modal_interactions
 from hikari.internal import routes
 from tests.hikari import hikari_test_helpers
 
@@ -633,6 +634,40 @@ class TestInteractionMessageBuilder:
         assert attachments == [files.ensure_resource(mock_attachment), mock_other_attachment]
 
 
+class TestInteractionModalBuilder:
+    def test_type_property(self):
+        builder = special_endpoints.InteractionModalBuilder("title", "custom_id")
+        assert builder.type == 9
+
+    def test_title_property(self):
+        builder = special_endpoints.InteractionModalBuilder("title", "custom_id").set_title("title2")
+        assert builder.title == "title2"
+
+    def test_custom_id_property(self):
+        builder = special_endpoints.InteractionModalBuilder("title", "custom_id").set_custom_id("better_custom_id")
+        assert builder.custom_id == "better_custom_id"
+
+    def test_components_property(self):
+        component = mock.Mock()
+        builder = special_endpoints.InteractionModalBuilder("title", "custom_id").add_component(component)
+        assert builder.components == [component]
+
+    def test_build(self):
+        component = mock.Mock()
+        builder = special_endpoints.InteractionModalBuilder("title", "custom_id").add_component(component)
+
+        result, attachments = builder.build(mock.Mock())
+        assert result == {
+            "type": 9,
+            "data": {
+                "title": "title",
+                "custom_id": "custom_id",
+                "components": [component.build.return_value],
+            },
+        }
+        assert attachments == ()
+
+
 class TestSlashCommandBuilder:
     def test_description_property(self):
         builder = special_endpoints.SlashCommandBuilder("ok", "NO")
@@ -1181,6 +1216,93 @@ class TestSelectMenuBuilder:
         }
 
 
+class TestTextInput:
+    @pytest.fixture()
+    def text_input(self):
+        return special_endpoints.TextInputBuilder(
+            container=mock.Mock(),
+            custom_id="o2o2o2",
+            label="label",
+        )
+
+    def test_set_style(self, text_input):
+        assert text_input.set_style(modal_interactions.TextInputStyle.PARAGRAPH) is text_input
+        assert text_input.style == modal_interactions.TextInputStyle.PARAGRAPH
+
+    def test_set_custom_id(self, text_input):
+        assert text_input.set_custom_id("custooom") is text_input
+        assert text_input.custom_id == "custooom"
+
+    def test_set_label(self, text_input):
+        assert text_input.set_label("labeeeel") is text_input
+        assert text_input.label == "labeeeel"
+
+    def test_set_placeholder(self, text_input):
+        assert text_input.set_placeholder("place") is text_input
+        assert text_input.placeholder == "place"
+
+    def test_set_required(self, text_input):
+        assert text_input.set_required(True) is text_input
+        assert text_input.required is True
+
+    def test_set_value(self, text_input):
+        assert text_input.set_value("valueeeee") is text_input
+        assert text_input.value == "valueeeee"
+
+    def test_set_min_length_(self, text_input):
+        assert text_input.set_min_length(10) is text_input
+        assert text_input.min_length == 10
+
+    def test_set_max_length(self, text_input):
+        assert text_input.set_max_length(250) is text_input
+        assert text_input.max_length == 250
+
+    def test_add_to_container(self, text_input):
+        assert text_input.add_to_container() is text_input._container
+        text_input._container.add_component.assert_called_once_with(text_input)
+
+    def test_build(self):
+        result = special_endpoints.TextInputBuilder(
+            container=object(),
+            custom_id="o2o2o2",
+            label="label",
+        ).build()
+
+        assert result == {
+            "type": modal_interactions.ModalComponentType.TEXT_INPUT,
+            "style": 1,
+            "custom_id": "o2o2o2",
+            "label": "label",
+        }
+
+    def test_build_partial(self):
+        result = (
+            special_endpoints.TextInputBuilder(
+                container=object(),
+                custom_id="o2o2o2",
+                label="label",
+            )
+            .set_placeholder("placeholder")
+            .set_value("value")
+            .set_required(False)
+            .set_min_length(10)
+            .set_max_length(250)
+            .build()
+        )
+
+        assert result == {
+            "type": modal_interactions.ModalComponentType.TEXT_INPUT,
+            "style": 1,
+            "custom_id": "o2o2o2",
+            "label": "label",
+            "placeholder": "placeholder",
+            "value": "value",
+            "required": False,
+            "min_length": 10,
+            "max_length": 250,
+        }
+
+
 class TestActionRowBuilder:
     def test_components_property(self):
         mock_component = object()
@@ -1226,3 +1348,13 @@ class TestActionRowBuilder:
         }
         mock_component_1.build.assert_called_once_with()
         mock_component_2.build.assert_called_once_with()
+
+
+class TestModalActionRow:
+    def test_add_text_input(self):
+        row = special_endpoints.ModalActionRowBuilder()
+        menu = row.add_text_input("hihihi", "label")
+
+        menu.add_to_container()
+
+        assert row.components == [menu]
