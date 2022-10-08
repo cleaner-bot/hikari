@@ -355,6 +355,11 @@ class ComponentInteraction(
         hikari.errors.InternalServerError
             If an internal error occurs on Discord while handling the request.
         """
+        deprecation.warn_deprecated(
+            "fetch_parent_message",
+            removal_version="2.0.0.dev113",
+            additional_info="The message can be accessed through the 'message' attribute",
+        )
         return await self.fetch_message(self.message.id)
 
     @deprecation.deprecated("2.0.0.dev110", "message")
@@ -366,6 +371,11 @@ class ComponentInteraction(
         typing.Optional[hikari.messages.Message]
             The object of the message found in the cache or `builtins.None`.
         """
+        deprecation.warn_deprecated(
+            "get_parent_message",
+            removal_version="2.0.0.dev113",
+            additional_info="The message can be accessed through the 'message' attribute",
+        )
         if isinstance(self.app, traits.CacheAware):
             return self.app.cache.get_message(self.message.id)
 
