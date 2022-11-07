@@ -20,7 +20,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Single-shard implementation for the V8 event gateway for Discord."""
+"""Single-shard implementation for the V10 event gateway for Discord."""
 
 from __future__ import annotations
 
@@ -43,6 +43,7 @@ from hikari import intents as intents_
 from hikari import presences
 from hikari import snowflakes
 from hikari import undefined
+from hikari import urls
 from hikari.api import shard
 from hikari.impl import rate_limits
 from hikari.internal import aio
@@ -100,8 +101,6 @@ _TOTAL_RATELIMIT: typing.Final[typing.Tuple[float, int]] = (60.0, 120)
 # This is done to always allow for HEARTBEAT packages
 # to get around (leaving 3 slots for it).
 _NON_PRIORITY_RATELIMIT: typing.Final[typing.Tuple[float, int]] = (60.0, 117)
-# Supported gateway version
-_VERSION: typing.Final[int] = 9
 # Used to identify the end of a ZLIB payload
 _ZLIB_SUFFIX: typing.Final[bytes] = b"\x00\x00\xff\xff"
 # Close codes which don't invalidate the current session.
@@ -348,7 +347,7 @@ def _serialize_activity(activity: typing.Optional[presences.Activity]) -> data_b
 
 @typing.final
 class GatewayShardImpl(shard.GatewayShard):
-    """Implementation of a V8 compatible gateway.
+    """Implementation of a V10 compatible gateway.
 
     Parameters
     ----------
@@ -774,7 +773,7 @@ class GatewayShardImpl(shard.GatewayShard):
         )
 
         query = dict(urllib.parse.parse_qsl(url_parts.query))
-        query["v"] = str(_VERSION)
+        query["v"] = str(urls.VERSION)
         query["encoding"] = "json"
 
         if self._transport_compression:
